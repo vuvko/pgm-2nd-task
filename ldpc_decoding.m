@@ -76,11 +76,8 @@ for iter = 1:max_iter
     if dout
         display(['Iteration ', num2str(iter), ':']);
     end
-    if strcmp(schedule, 'sequential')
-        sq = sq(randperm(length(sq)));
-    end
     %-------------------
-    % Персчитываем сообщения вершин/факторов
+    % Пересчитываем сообщения вершин/факторов
     for ind = 1:length(sq)
         if sq(ind) > 0
             % пересчитываем сообщение от фактора к вершинам
@@ -125,10 +122,10 @@ for iter = 1:max_iter
     df = M_to_0;
     df(H == 0) = 1;
     b_0 = (1 - q) .* prod(df, 1)';
-    %M_to_0
-    %M_to_1
-    %b_0
-    %b_1
+    M_to_0
+    M_to_1
+    b_0
+    b_1
     %-------------------
     % Оценка вектора ошибок
     [~, e] = max([b_0, b_1], [], 2);
@@ -151,6 +148,9 @@ for iter = 1:max_iter
         end
         status = 1;
         return;
+    end
+    if strcmp(schedule, 'sequential')
+        sq = sq(randperm(length(sq)));
     end
 end
 status = 2;
