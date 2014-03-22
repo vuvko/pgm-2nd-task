@@ -28,7 +28,7 @@ function [err_bit, err_block, diver] = ldpc_mc(H, q, num_points)
         display(['#', num2str(iter)]);
         e = mod(binornd([1:n]', q), 2);
         s = mod(H * e, 2);
-        [e_n, status] = ldpc_decoding(s, H, q, 'display', false);
+        [e_n, status] = ldpc_decoding(s, H, q, 'schedule', 'parallel', 'display', false);
         if status < 2
             good_status_num = good_status_num + 1;
             err_bit_num = err_bit_num + xor(e, e_n);
