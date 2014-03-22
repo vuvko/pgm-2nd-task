@@ -94,6 +94,10 @@ for iter = 1:max_iter
                 M_from_0(j, :) = (1 + dr) / 2;
                 M_from_1(j, :) = (1 - dr) / 2;                
             end
+            %nm = (M_to_0 + M_to_1);
+            %M_to_0 = M_to_0 ./ nm;
+            %M_to_1 = M_to_1 ./ nm;
+            %any(any(nm ~= 1))
         else
             % пересчитываем сообщение от вершины к факторам
             i = -sq(ind);
@@ -105,14 +109,11 @@ for iter = 1:max_iter
             f = repmat(M_from_1(:, i), 1, m);
             f(idx == 0) = 1;
             M_to_1(:, i) = q * prod(f, 1)';
+            nm = (M_from_0 + M_from_1);
+            M_from_0 = M_from_0 ./ nm;
+            M_from_1 = M_from_1 ./ nm;
         end
     end
-    nm = (M_to_0 + M_to_1);
-    M_to_0 = M_to_0 ./ nm;
-    M_to_1 = M_to_1 ./ nm;
-    nm = (M_from_0 + M_from_1);
-    M_from_0 = M_from_0 ./ nm;
-    M_from_1 = M_from_1 ./ nm;
     %-------------------
     % Вычисляем beliefs
     b_old = [b_0, b_1];
