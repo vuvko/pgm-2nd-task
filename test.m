@@ -1,11 +1,11 @@
 clear;
 
-n = 256;
-k = 32;
+n = 10;
+k = 3;
 m = n - k;
 %q = rand(1) / 2; % q --- random
-q = 0.25;        % q --- fixed 
-H = make_ldpc_mex(m, n, 3);
+q = 0.15;        % q --- fixed 
+H = make_ldpc_mex(m, n, 4);
 % проверяем правильность построения порождающей матрицы mod(H * G, 2) == 0
 %[G, ind] = ldpc_gen_matrix(H);
 %assert(sum(sum(G(ind, :) ~= eye(k))) == 0);
@@ -19,7 +19,7 @@ e = mod(binornd([1:n]', q), 2);
 v = ones(n, 1);
 w = xor(v, e);
 s = mod(H * w, 2);
-[e_n, status] = ldpc_decoding(s, H, q);
+[e_n, status] = ldpc_decoding(s, H, q, 'schedule', 'parallel', 'eps', 1e-2);
 if status == 2
     disp 'Max iter.';
 else
