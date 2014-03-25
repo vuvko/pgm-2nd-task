@@ -1,12 +1,12 @@
 clear;
 
-n = 256;
-k = 128;
+num_points = 20;
+n = 270;
+k = 23;
 m = n - k;
 %q = rand(1) / 2; % q --- random
-q = 0.01;        % q --- fixed 
-H = make_ldpc_mex(m, n, 4);
-num_points = 20;
+q = 0.15;        % q --- fixed 
+H = make_ldpc_mex(m, n, 3);
 % проверяем правильность построения порождающей матрицы mod(H * G, 2) == 0
 %[G, ind] = ldpc_gen_matrix(H);
 %assert(sum(sum(G(ind, :) ~= eye(k))) == 0);
@@ -15,18 +15,19 @@ num_points = 20;
 
 display(['Channel ', num2str(1 + q * log2(q) + (1 - q) * log2(1 - q))]);
 display(['Speed ', num2str(k / n)]);
-e = mod(binornd([1:n]', q), 2);
+%e = mod(binornd([1:n]', q), 2);
+e = zeros(n, 1);
+e(2) = 1;
 %v = randi(2, n, 1) - 1;
 v = ones(n, 1);
 w = xor(v, e);
 s = mod(H * w, 2);
-[e_n, status] = ldpc_decoding(s, H, q, 'schedule', 'sequential', 'eps', 1e-4);
+[e_n, status] = ldpc_decoding(s, H, q, 'schedule', 'parallel', 'eps', 1e-4, 'max_iter', 100);
 if status == 2
     disp 'Max iter.';
 else
     disp 'Good';
-    sum(e ~= e_n)
-    max(e_n)
 end
+sum(e ~= e_n) / n
 
-[err_bit, err_block, diver] = ldpc_mc(H, q, num_points)
+%[err_bit, err_block, diver] = ldpc_mc(H, q, num_points)
