@@ -55,19 +55,16 @@ M_to_1 = zeros(size(H));
 M_to_0 = zeros(size(H));
 M_from_1 = zeros(size(H));
 M_from_0 = zeros(size(H));
-e = mod(binornd([1:n]', q), 2);
+%e = mod(binornd([1:n]', q), 2);
 b_1 = ones(n, 1);
 b_0 = ones(n, 1);
 % стартуем из унарных потенциалов
-%M_to = repmat((q .^ e') .* ((1-q) .^ (1-e')), m, 1);
-%p = (q .^ e') .* ((1-q) .^ (1-e'));
-p = q + zeros(1, n);
-M_to_1 = repmat(p, m, 1);
-M_to_0 = repmat(1 - p, m, 1);
+M_to_1 = M_to_1 + q;
+M_to_0 = 1 - M_to_1;
 
 % определяем последовательность обработки вершин/факторов
-% sq = [[1:m*n], -[1:m*n]];
-sq = [[1:m], -[1:n]];
+%sq = [[1:m], -[1:n]];
+sq = [-[1:n], [1:m]];
 
 %-------------------
 % Основной цикл
@@ -80,39 +77,65 @@ for iter = 1:max_iter
     % Пересчитываем сообщения вершин/факторов
     for ind = 1:length(sq)
         if sq(ind) > 0
-            % пересчитываем сообщение от фактора к вершинам
+            % пересчитываем сообщения от фактора к вершинам
             j = sq(ind);
-            delta = repmat(M_to_0(j, :) - M_to_1(j, :), n, 1);
-            idx = repmat(H(j, :), n, 1);
-            idx(eye(n) == 1) = 0;
-            delta(idx == 0) = 1;
-            dr = prod(delta, 2)';
-            if s(j) == 1
-                M_from_0(j, :) = (1 - dr) / 2;
-                M_from_1(j, :) = (1 + dr) / 2;
-            else
-                M_from_0(j, :) = (1 + dr) / 2;
-                M_from_1(j, :) = (1 - dr) / 2;                
-            end
-            %nm = (M_to_0 + M_to_1);
-            %M_to_0 = M_to_0 ./ nm;
-            %M_to_1 = M_to_1 ./ nm;
-            %any(any(nm ~= 1))
+            %delta = repmat(M_to_0(j, :) - M_to_1(j, :), n, 1);
+            %idx = repmat(H(j, :), n, 1);
+            %idx(eye(n) == 1) = 0;
+            %delta(idx == 0) = 1;
+            %dr = prod(delta, 2)';
+            %if s(j) == 1
+            %    M_from_0(j, :) = (1 - dr) / 2;
+            %    M_from_1(j, :) = (1 + dr) / 2;
+            %else
+            %    M_from_0(j, :) = (1 + dr) / 2;
+            %    M_from_1(j, :) = (1 - dr) / 2;               
+            %end
+            %% нормируем сообщения
+            %%nm = (M_from_0(j, :) + M_from_1(j, :));
+            %%M_from_0(j, :) = M_from_0(j, :) ./ nm;
+            %%M_from_1(j, :) = M_from_1(j, :) ./ nm;
+            
+            f = M_from_0;
+            idx = H;
+            idx(j, :) = 0;
+            f(idx == 0) = 1;
+            M_to_0(j, :) = (1 - q) * prod(f, 1);
+            f = M_from_1;
+            f(idx == 0) = 1;
+            M_to_1(j, :) = q * prod(f, 1);
+            
+            nm = M_to_0(j, :) + M_to_1(j, :);
+            M_to_0(j, :) = M_to_0(j, :) ./ nm;
+            M_to_1(j, :) = M_to_1(j, :) ./ nm;            
         else
-            % пересчитываем сообщение от вершины к факторам
+            % пересчитываем сообщения от вершины к факторам
             i = -sq(ind);
-            f = repmat(M_from_0(:, i), 1, m);
-            idx = repmat(H(:, i), 1, m);
-            idx(eye(m) == 1) = 0;
-            f(idx == 0) = 1;
-            M_to_0(:, i) = (1 - q) * prod(f, 1)'; 
-            f = repmat(M_from_1(:, i), 1, m);
-            f(idx == 0) = 1;
-            M_to_1(:, i) = q * prod(f, 1)';
-            nm = (M_from_0 + M_from_1);
-            M_from_0 = M_from_0 ./ nm;
-            M_from_1 = M_from_1 ./ nm;
+            %f = repmat(M_from_0(:, i), 1, m);
+            %idx = repmat(H(:, i), 1, m);
+            %idx(eye(m) == 1) = 0;
+            %f(idx == 0) = 1;
+            %M_to_0(:, i) = (1 - q) * prod(f, 1)'; 
+            %f = repmat(M_from_1(:, i), 1, m);
+            %f(idx == 0) = 1;
+            %M_to_1(:, i) = q * prod(f, 1)';
+            %% нормируем сообщения
+            %nm = (M_to_0(:, i) + M_to_1(:, i));
+            %M_to_0(:, i) = M_to_0(:, i) ./ nm;
+            %M_to_1(:, i) = M_to_1(:, i) ./ nm;
+            
+            delta = M_to_0 - M_to_1;
+            idx = H;
+            idx(:, i) = 0;
+            delta(idx == 0) = 1;
+            dr = (1 + prod(delta, 2)) / 2;
+            dr(s == 1) = 1 - dr(s == 1);
+            M_from_0(:, i) = dr;
+            M_from_1(:, i) = 1 - dr;
         end
+        %M_to_0
+        %M_from_0
+        %pause;
     end
     %-------------------
     % Вычисляем beliefs
@@ -123,10 +146,6 @@ for iter = 1:max_iter
     df = M_to_0;
     df(H == 0) = 1;
     b_0 = (1 - q) .* prod(df, 1)';
-    %M_to_0
-    %M_to_1
-    %b_0
-    %b_1
     %-------------------
     % Оценка вектора ошибок
     [~, e] = max([b_0, b_1], [], 2);
@@ -135,9 +154,10 @@ for iter = 1:max_iter
     % Проверка критериев остановки
     db = max(max(abs(b_old - [b_0, b_1])));
     if dout
-        display(['Difference in beliefs = ', num2str(db), ';']);
+        display(['  Difference in beliefs = ', num2str(db), ';']);
+        display(['  Bit error = ', num2str(sum(xor(mod(H * e, 2), s)) / n), ';']);
     end
-    if all(H * e == s)
+    if all(mod(H * e, 2) == s)
         if dout
             disp 'Exiting with status 0.';
         end
@@ -150,6 +170,8 @@ for iter = 1:max_iter
         status = 1;
         return;
     end
+    % меняем последовательность обработки вершин/факторов
+    % при последовательном расписании
     if strcmp(schedule, 'sequential')
         sq = sq(randperm(length(sq)));
     end
