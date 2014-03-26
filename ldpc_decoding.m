@@ -32,8 +32,8 @@ function [e, status] = ldpc_decoding(s, H, q, varargin)
 e = zeros(n, 1);
 status = -1;
 
-%-------------------
-% Разбор аргументов
+%%-------------------
+%% Разбор аргументов
 [err, schedule, damping, max_iter, eps, dout] = parse_arg(varargin{:});
 if err > 0
     v = varargin{err+1};
@@ -48,13 +48,14 @@ elseif err < 0
         'Unknown argument %s.', varargin{-err});
 end
 
-%-------------------
-% Инициализация
+%%-------------------
+%% Инициализация
 
 M_to_1 = zeros(size(H));
 M_to_0 = zeros(size(H));
 M_from_1 = zeros(size(H));
 M_from_0 = zeros(size(H));
+d_coeff = 1;
 %e = mod(binornd([1:n]', q), 2);
 b_1 = ones(n, 1);
 b_0 = ones(n, 1);
@@ -66,96 +67,70 @@ M_to_0 = 1 - M_to_1;
 %sq = [[1:m], -[1:n]];
 sq = [-[1:n], [1:m]];
 
-%-------------------
-% Основной цикл
+%%-------------------
+%% Основной цикл
 
 for iter = 1:max_iter
     if dout
         display(['Iteration ', num2str(iter), ':']);
     end
-    %-------------------
-    % Пересчитываем сообщения вершин/факторов
+    %%-------------------
+    %% Пересчитываем сообщения вершин/факторов
     for ind = 1:length(sq)
         if sq(ind) > 0
-            % пересчитываем сообщения от фактора к вершинам
+            % пересчитываем сообщения от вершин к фактору (3-й шаг)
             j = sq(ind);
-            %delta = repmat(M_to_0(j, :) - M_to_1(j, :), n, 1);
-            %idx = repmat(H(j, :), n, 1);
-            %idx(eye(n) == 1) = 0;
-            %delta(idx == 0) = 1;
-            %dr = prod(delta, 2)';
-            %if s(j) == 1
-            %    M_from_0(j, :) = (1 - dr) / 2;
-            %    M_from_1(j, :) = (1 + dr) / 2;
-            %else
-            %    M_from_0(j, :) = (1 + dr) / 2;
-            %    M_from_1(j, :) = (1 - dr) / 2;               
-            %end
-            %% нормируем сообщения
-            %%nm = (M_from_0(j, :) + M_from_1(j, :));
-            %%M_from_0(j, :) = M_from_0(j, :) ./ nm;
-            %%M_from_1(j, :) = M_from_1(j, :) ./ nm;
-            
             f = M_from_0;
             idx = H;
             idx(j, :) = 0;
             f(idx == 0) = 1;
-            M_to_0(j, :) = (1 - q) * prod(f, 1);
+            %M_to_0(j, :) = (1 - q) * prod(f, 1);
+            tM = (1 - q) * prod(f, 1);
+            M_to_0(j, :) = d_coeff * tM + (1 - d_coeff) * M_to_0(j, :);
             f = M_from_1;
             f(idx == 0) = 1;
-            M_to_1(j, :) = q * prod(f, 1);
-            
+            %M_to_1(j, :) = q * prod(f, 1);
+            tM = q * prod(f, 1);
+            M_to_1(j, :) = d_coeff * tM + (1 - d_coeff) * M_to_1(j, :);
+            % нормировка
             nm = M_to_0(j, :) + M_to_1(j, :);
             M_to_0(j, :) = M_to_0(j, :) ./ nm;
             M_to_1(j, :) = M_to_1(j, :) ./ nm;            
         else
-            % пересчитываем сообщения от вершины к факторам
-            i = -sq(ind);
-            %f = repmat(M_from_0(:, i), 1, m);
-            %idx = repmat(H(:, i), 1, m);
-            %idx(eye(m) == 1) = 0;
-            %f(idx == 0) = 1;
-            %M_to_0(:, i) = (1 - q) * prod(f, 1)'; 
-            %f = repmat(M_from_1(:, i), 1, m);
-            %f(idx == 0) = 1;
-            %M_to_1(:, i) = q * prod(f, 1)';
-            %% нормируем сообщения
-            %nm = (M_to_0(:, i) + M_to_1(:, i));
-            %M_to_0(:, i) = M_to_0(:, i) ./ nm;
-            %M_to_1(:, i) = M_to_1(:, i) ./ nm;
-            
+            % пересчитываем сообщения от факторов к вершине (2-й шаг)
+            i = -sq(ind);            
             delta = M_to_0 - M_to_1;
             idx = H;
             idx(:, i) = 0;
             delta(idx == 0) = 1;
             dr = (1 + prod(delta, 2)) / 2;
             dr(s == 1) = 1 - dr(s == 1);
-            M_from_0(:, i) = dr;
-            M_from_1(:, i) = 1 - dr;
+            M_from_0(:, i) = d_coeff * dr + (1 - d_coeff) * M_from_0(:, i);
+            M_from_1(:, i) = 1 - M_from_0(:, i);
         end
         %M_to_0
         %M_from_0
         %pause;
     end
-    %-------------------
-    % Вычисляем beliefs
+    %%-------------------
+    %% Вычисляем beliefs
     b_old = [b_0, b_1];
-    dq = M_to_1;
+    dq = M_from_1;
     dq(H == 0) = 1;
     b_1 = q .* prod(dq, 1)';
-    df = M_to_0;
+    df = M_from_0;
     df(H == 0) = 1;
     b_0 = (1 - q) .* prod(df, 1)';
-    %-------------------
-    % Оценка вектора ошибок
+    %%-------------------
+    %% Оценка вектора ошибок
     [~, e] = max([b_0, b_1], [], 2);
     e = e - 1;
-    %-------------------
-    % Проверка критериев остановки
+    %%-------------------
+    %% Проверка критериев остановки
     db = max(max(abs(b_old - [b_0, b_1])));
     if dout
         display(['  Difference in beliefs = ', num2str(db), ';']);
-        display(['  Bit error = ', num2str(sum(xor(mod(H * e, 2), s)) / n), ';']);
+        display(['  Error = ', num2str(sum(xor(mod(H * e, 2), s)) / n), ';']);
     end
     if all(mod(H * e, 2) == s)
         if dout
@@ -175,6 +150,7 @@ for iter = 1:max_iter
     if strcmp(schedule, 'sequential')
         sq = sq(randperm(length(sq)));
     end
+    d_coeff = damping;
 end
 status = 2;
 if dout
