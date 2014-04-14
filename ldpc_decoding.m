@@ -26,7 +26,7 @@
 %    равен 1, если произошла стабилизация значений beliefs, 
 %    равен 2, если произошел выход по максимальному числу итераций.
 
-function [e, status] = ldpc_decoding(s, H, q, varargin)
+function [e, status, b_stat] = ldpc_decoding(s, H, q, varargin)
 
 [m, n] = size(H);
 e = zeros(n, 1);
@@ -48,6 +48,8 @@ elseif err < 0
         'Unknown argument %s.', varargin{-err});
 end
 
+b_stat = zeros(max_iter, 1) + 1;
+
 %%-------------------
 %% Инициализация
 
@@ -64,8 +66,8 @@ M_to_1 = M_to_1 + q;
 M_to_0 = 1 - M_to_1;
 
 % определяем последовательность обработки вершин/факторов
-%sq = [[1:m], -[1:n]];
-sq = [-[1:n], [1:m]];
+%sq = [-[1:n], [1:m]];
+sq = [[1:m], -[1:n]];
 
 %%-------------------
 %% Основной цикл
@@ -78,39 +80,36 @@ for iter = 1:max_iter
     %% Пересчитываем сообщения вершин/факторов
     for ind = 1:length(sq)
         if sq(ind) > 0
-            % пересчитываем сообщения от вершин к фактору (3-й шаг)
+            % пересчитываем сообщения от фактора к вершинам (2-й шаг)
             j = sq(ind);
-            f = M_from_0;
-            idx = H;
-            idx(j, :) = 0;
-            f(idx == 0) = 1;
-            %M_to_0(j, :) = (1 - q) * prod(f, 1);
-            tM = (1 - q) * prod(f, 1);
-            M_to_0(j, :) = d_coeff * tM + (1 - d_coeff) * M_to_0(j, :);
-            f = M_from_1;
-            f(idx == 0) = 1;
-            %M_to_1(j, :) = q * prod(f, 1);
-            tM = q * prod(f, 1);
-            M_to_1(j, :) = d_coeff * tM + (1 - d_coeff) * M_to_1(j, :);
-            % нормировка
-            nm = M_to_0(j, :) + M_to_1(j, :);
-            M_to_0(j, :) = M_to_0(j, :) ./ nm;
-            M_to_1(j, :) = M_to_1(j, :) ./ nm;            
-        else
-            % пересчитываем сообщения от факторов к вершине (2-й шаг)
-            i = -sq(ind);            
-            delta = M_to_0 - M_to_1;
-            idx = H;
-            idx(:, i) = 0;
+            delta = repmat(M_to_0(j, :) - M_to_1(j, :), n, 1);
+            idx = repmat(H(j, :), n, 1);
+            idx(eye(n) == 1) = 0;
             delta(idx == 0) = 1;
-            dr = (1 + prod(delta, 2)) / 2;
-            dr(s == 1) = 1 - dr(s == 1);
-            M_from_0(:, i) = d_coeff * dr + (1 - d_coeff) * M_from_0(:, i);
-            M_from_1(:, i) = 1 - M_from_0(:, i);
+            dr = prod(delta, 2)';
+            if s(j) == 1
+                M_from_0(j, :) = (1 - dr) / 2;
+                M_from_1(j, :) = (1 + dr) / 2;
+            else
+                M_from_0(j, :) = (1 + dr) / 2;
+                M_from_1(j, :) = (1 - dr) / 2;               
+            end
+        else
+            % пересчитываем сообщения от вершины к вершинам (3-й шаг)
+            i = -sq(ind);
+            f = repmat(M_from_0(:, i), 1, m);
+            idx = repmat(H(:, i), 1, m);
+            idx(eye(m) == 1) = 0;
+            f(idx == 0) = 1;
+            M_to_0(:, i) = (1 - q) * prod(f, 1)'; 
+            f = repmat(M_from_1(:, i), 1, m);
+            f(idx == 0) = 1;
+            M_to_1(:, i) = q * prod(f, 1)';
+            % нормируем сообщения
+            nm = (M_to_0(:, i) + M_to_1(:, i));
+            M_to_0(:, i) = M_to_0(:, i) ./ nm;
+            M_to_1(:, i) = M_to_1(:, i) ./ nm;
         end
-        %M_to_0
-        %M_from_0
-        %pause;
     end
     %%-------------------
     %% Вычисляем beliefs
@@ -121,13 +120,19 @@ for iter = 1:max_iter
     df = M_from_0;
     df(H == 0) = 1;
     b_0 = (1 - q) .* prod(df, 1)';
+    % нормировка
+    nb = b_0 + b_1;
+    b_0 = b_0 ./ nb;
+    b_1 = b_1 ./ nb;
+    b_new = [b_0, b_1];
+    b_stat(iter) = sum(sum(abs(b_old - b_new) < eps)) / (2 * n);
     %%-------------------
     %% Оценка вектора ошибок
-    [~, e] = max([b_0, b_1], [], 2);
+    [~, e] = max(b_new, [], 2);
     e = e - 1;
     %%-------------------
     %% Проверка критериев остановки
-    db = max(max(abs(b_old - [b_0, b_1])));
+    db = max(max(abs(b_old - b_new)));
     if dout
         display(['  Difference in beliefs = ', num2str(db), ';']);
         display(['  Error = ', num2str(sum(xor(mod(H * e, 2), s)) / n), ';']);
