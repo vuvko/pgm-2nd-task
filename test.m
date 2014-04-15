@@ -32,3 +32,64 @@ display(['Speed ', num2str(k / n)]);
 %params.max_iter = 200;
 %params.damping = 3/8;
 %plot_beliefs(H, q, num_points, params);
+
+num_points = 5;
+% Шеннон в зависимости от r
+n = 256;
+q = 0.1;
+params.damping = 0.85;
+k = [16:16:256];
+j = 3;
+err_bit = zeros(length(k), 1);
+err_block = zeros(length(k), 1);
+diver = zeros(length(k), 1);
+for i = 1:length(k)
+    H = make_ldpc_mex(n - k(i), n, j);
+    [err_bit(i), err_block(i), diver(i)] = ldpc_mc(H, q, num_points, params);
+end
+
+figure;
+plot(err_bit)
+hold on
+plot(err_block)
+plot(diver)
+hold off
+
+% Шеннон в зависимости от n
+r = 0.25;
+n = [16:16:256];
+err_bit = zeros(length(n), 1);
+err_block = zeros(length(n), 1);
+diver = zeros(length(n), 1);
+for i = 1:length(n)
+    k = r * n(i);
+    H = make_ldpc_mex(n(i) - k, n(i), j);
+    [err_bit(i), err_block(i), diver(i)] = ldpc_mc(H, q, num_points, params);
+end
+
+figure;
+plot(err_bit)
+hold on
+plot(err_block)
+plot(diver)
+hold off
+
+% Шеннон в зависимости от j
+n = 256;
+k = 32;
+m = n - k;
+j = [3:1:12];
+err_bit = zeros(length(j), 1);
+err_block = zeros(length(j), 1);
+diver = zeros(length(j), 1);
+for i = 1:length(j)
+    H = make_ldpc_mex(m, n, j(i));
+    [err_bit(i), err_block(i), diver(i)] = ldpc_mc(H, q, num_points, params);
+end
+
+figure;
+plot(err_bit)
+hold on
+plot(err_block)
+plot(diver)
+hold off
