@@ -24,8 +24,28 @@ for damping = 0.1:0.1:1
     plot_beliefs(H, q, num_points, params, h_beliefs_s);
     hold on;
 end
-
 figure(h_beliefs_p);
 export_fig 'for_report/beliefs_p' '-pdf'
 figure(h_beliefs_s)
 export_fig 'for_report/beliefs_s' '-pdf'
+
+num_points = 50;
+n = 128;
+q = 0.1;
+params.damping = 0.85;
+err_bit = zeros(8, 1);
+err_block = zeros(8, 1);
+diver = zeros(8, 1);
+for i = [1:8]
+    k = 2 ^ (i - 1);
+    H = make_ldpc_mex(n - k, n, j);
+    [err_bit(i), err_block(i), diver(i)] = ldpc_mc(H, q, num_points, params);
+end
+
+figure;
+plot(err_bit)
+hold on
+plot(err_block)
+plot(diver)
+hold off
+
