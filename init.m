@@ -1,8 +1,8 @@
 clear;
 
-num_points = 4;
-n = 16;
-k = 4;
+num_points = 20;
+n = 128;
+k = 32;
 m = n - k;
 j = 3;
 %q = rand(1) / 2; % q --- random
