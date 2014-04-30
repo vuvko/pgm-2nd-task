@@ -29,23 +29,80 @@ export_fig 'for_report/beliefs_p' '-pdf'
 figure(h_beliefs_s)
 export_fig 'for_report/beliefs_s' '-pdf'
 
-num_points = 50;
+num_points = 20;
+% Шеннон в зависимости от r
 n = 128;
 q = 0.1;
+ch = 1 + q * log2(q) + (1 - q) * log2(1 - q);
 params.damping = 0.85;
-err_bit = zeros(8, 1);
-err_block = zeros(8, 1);
-diver = zeros(8, 1);
-for i = [1:8]
-    k = 2 ^ (i - 1);
-    H = make_ldpc_mex(n - k, n, j);
+k = [12:16:128];
+j = 3;
+err_bit = zeros(length(k), 1);
+err_block = zeros(length(k), 1);
+diver = zeros(length(k), 1);
+for i = 1:length(k)
+    display(['i --- ', num2str(i), ' / ', num2str(length(k))])
+    H = make_ldpc_mex(n - k(i), n, j);
     [err_bit(i), err_block(i), diver(i)] = ldpc_mc(H, q, num_points, params);
 end
 
-figure;
-plot(err_bit)
+h = figure;
+set(h, 'Color', 'w')
+plot(k / n, err_bit, 'g')
 hold on
-plot(err_block)
-plot(diver)
+plot(k / n, err_block, 'b')
+plot(k / n, diver, 'r')
+plot([ch, ch], [0, 1], 'm')
+xlabel('r')
+legend('bit error', 'block error', 'diver');
+export_fig 'for_report/sh_r' '-pdf'
 hold off
 
+% Шеннон в зависимости от n
+r = 0.25;
+n = [16:16:128];
+err_bit = zeros(length(n), 1);
+err_block = zeros(length(n), 1);
+diver = zeros(length(n), 1);
+for i = 1:length(n)
+    display(['i --- ', num2str(i), ' / ', num2str(length(n))])
+    k = r * n(i);
+    H = make_ldpc_mex(n(i) - k, n(i), j);
+    [err_bit(i), err_block(i), diver(i)] = ldpc_mc(H, q, num_points, params);
+end
+
+h = figure;
+set(h, 'Color', 'w')
+plot(n, err_bit, 'g')
+hold on
+plot(n, err_block, 'b')
+plot(n, diver, 'r')
+xlabel('n')
+export_fig 'for_report/sh_n' '-pdf'
+legend('bit error', 'block error', 'diver');
+hold off
+
+% Шеннон в зависимости от j
+n = 128;
+k = 32;
+m = n - k;
+j = [3:1:12];
+err_bit = zeros(length(j), 1);
+err_block = zeros(length(j), 1);
+diver = zeros(length(j), 1);
+for i = 1:length(j)
+    display(['i --- ', num2str(i), ' / ', num2str(length(j))])
+    H = make_ldpc_mex(m, n, j(i));
+    [err_bit(i), err_block(i), diver(i)] = ldpc_mc(H, q, num_points, params);
+end
+
+h = figure;
+set(h, 'Color', 'w')
+plot(j, err_bit, 'g')
+hold on
+plot(j, err_block, 'b')
+plot(j, diver, 'r')
+xlabel('j')
+legend('bit error', 'block error', 'diver');
+export_fig 'for_report/sh_j' '-pdf'
+hold off

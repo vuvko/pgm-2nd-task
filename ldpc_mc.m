@@ -56,7 +56,7 @@ function [err_bit, err_block, diver, b_stat] = ldpc_mc(H, q, num_points, params)
     
     b_stat = zeros(max_iter, 1);
     for iter = 1:num_points
-        display(['#', num2str(iter)]);
+        %display(['#', num2str(iter)]);
         e = mod(binornd(1, q, [n, 1]), 2);
         s = mod(H * e, 2);
         [e_n, status, b_stat_n] = ldpc_decoding(s, H, q, ...
